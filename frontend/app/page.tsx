@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { motion } from 'framer-motion';
 import { TermsModal } from '@/components/TermsModal';
+import { OnboardingGuide } from '@/components/OnboardingGuide';
 
 export default function Home() {
   const [showTerms, setShowTerms] = useState(false);
@@ -128,10 +129,24 @@ export default function Home() {
               >
                 {agreed ? 'Deposit USDC & Enter' : 'Agree to Terms to Enter'}
               </button>
+
+              {/* Bonus Banner */}
+              <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🎁</span>
+                  <div className="text-left">
+                    <p className="text-yellow-200 font-bold text-sm">Special Offer</p>
+                    <p className="text-white text-xs">Deposit 100+ USDC & get <span className="text-yellow-400 font-bold">5% Bonus</span> tickets!</p>
+                  </div>
+                </div>
+                <span className="text-xs bg-yellow-500/20 text-yellow-200 px-2 py-1 rounded">Limited Time</span>
+              </div>
             </div>
           </motion.div>
         </motion.div>
       </main>
+
+      <OnboardingGuide />
 
       {/* How it Works Section */}
       <section className="relative z-10 py-24 border-t border-white/5 bg-black/50 backdrop-blur-sm">
