@@ -46,6 +46,51 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {/* How it Works Section */}
+      <section className="py-16 bg-gray-900 border-t border-gray-800">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h3 className="text-3xl font-bold mb-12">How It Works</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-6 bg-gray-800 rounded-xl">
+              <div className="text-4xl mb-4">💰</div>
+              <h4 className="text-xl font-bold mb-2">1. Deposit USDC</h4>
+              <p className="text-gray-400">Your deposit is your ticket. 1 USDC = 1 Ticket. Withdraw your principal anytime.</p>
+            </div>
+            <div className="p-6 bg-gray-800 rounded-xl">
+              <div className="text-4xl mb-4">⏳</div>
+              <h4 className="text-xl font-bold mb-2">2. Wait for Draw</h4>
+              <p className="text-gray-400">Every 24 hours, a smart contract randomly selects a winner to receive the prize pool.</p>
+            </div>
+            <div className="p-6 bg-gray-800 rounded-xl">
+              <div className="text-4xl mb-4">🎉</div>
+              <h4 className="text-xl font-bold mb-2">3. Win Rewards</h4>
+              <p className="text-gray-400">If you win, you get the pot! If you lose, you keep your money and play again tomorrow.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-16 bg-gray-800">
+        <div className="max-w-3xl mx-auto px-6">
+          <h3 className="text-3xl font-bold mb-12 text-center">Frequently Asked Questions</h3>
+          <div className="space-y-6">
+            <div>
+              <h4 className="font-bold text-lg mb-2">Is my money safe?</h4>
+              <p className="text-gray-400">Yes. Your principal is stored in the PrizeVault smart contract and can be withdrawn at any time. Only the yield/prize is distributed.</p>
+            </div>
+            <div>
+              <h4 className="font-bold text-lg mb-2">How is the winner picked?</h4>
+              <p className="text-gray-400">We use Chainlink VRF (Verifiable Random Function) to ensure the winner selection is provably fair and tamper-proof.</p>
+            </div>
+            <div>
+              <h4 className="font-bold text-lg mb-2">What is the cost?</h4>
+              <p className="text-gray-400">There is no entry fee. You just deposit USDC. The protocol takes a small fee from the *prize* itself, never your principal.</p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
