@@ -1,33 +1,101 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { motion } from 'framer-motion';
+import { useAccount } from 'wagmi';
+import { motion, AnimatePresence } from 'framer-motion';
 import { TermsModal } from '@/components/TermsModal';
 import { OnboardingGuide } from '@/components/OnboardingGuide';
+import { Loader2 } from 'lucide-react';
 
 export default function Home() {
+  const { isConnected } = useAccount();
   const [showTerms, setShowTerms] = useState(false);
   const [agreed, setAgreed] = useState(false);
+
+  // Game State (Demo Mode)
+  const [depositAmount, setDepositAmount] = useState('');
+  const [principalBalance, setPrincipalBalance] = useState(0);
+  const [bonusBalance, setBonusBalance] = useState(0);
+  const [isDepositing, setIsDepositing] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Animation Variants
   const container = {
     hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
-
   const item = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 }
   };
 
+  const handleDeposit = async () => {
+    if (!isConnected) {
+      alert("Please connect your wallet first!");
+      return;
+    }
+    if (!depositAmount || Number(depositAmount) <= 0) {
+      alert("Please enter a valid amount.");
+      return;
+    }
+
+    setIsDepositing(true);
+
+    // Simulate Blockchain Transaction
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    const amount = Number(depositAmount);
+    setPrincipalBalance(prev => prev + amount);
+
+    // Bonus Logic: 5% if > 100
+    if (amount >= 100) {
+      const bonus = amount * 0.05;
+      setBonusBalance(prev => prev + bonus);
+    }
+
+    setIsDepositing(false);
+    setShowConfetti(true);
+    setDepositAmount('');
+    setTimeout(() => setShowConfetti(false), 3000);
+  };
+
+  const handleWithdraw = async () => {
+    if (principalBalance <= 0) {
+      alert("No principal to withdraw.");
+      return;
+    }
+    if (window.confirm(`Withdraw ${principalBalance} USDC? (Bonus funds cannot be withdrawn)`)) {
+      setIsDepositing(true);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setPrincipalBalance(0);
+      // Bonus remains or resets? Usually bonus is forfeited on full withdraw, but let's keep it simple for now or reset it.
+      // Rule: "Bonus money cannot be withdrawn". 
+      // Let's leave bonus there to "play" with, or Reset it if they leave. 
+      // User didn't specify forfeit, so we'll just zero the principal.
+      setIsDepositing(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-purple-500 selection:text-white overflow-hidden">
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-purple-500 selection:text-white overflow-hidden relative">
+
+      {/* Confetti / Success Overlay */}
+      <AnimatePresence>
+        {showConfetti && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+          >
+            <div className="bg-green-500/90 text-white px-8 py-4 rounded-full text-2xl font-bold backdrop-blur-md shadow-2xl items-center flex gap-3">
+              🎉 Deposit Successful!
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Background Gradients */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[120px]" />
@@ -46,42 +114,52 @@ export default function Home() {
         <ConnectButton />
       </header>
 
-      <main className="relative z-10 flex flex-col items-center justify-center pt-20 pb-32 px-4 text-center">
+      <main className="relative z-10 flex flex-col items-center justify-center pt-10 pb-32 px-4 text-center">
         <motion.div
           initial="hidden"
           animate="show"
           variants={container}
-          className="max-w-4xl"
+          className="max-w-4xl w-full"
         >
-          <motion.div variants={item}>
+          {/* USER DASHBOARD (Visible if deposited or just always visible for demo) */}
+          {(principalBalance > 0 || bonusBalance > 0) && (
+            <motion.div variants={item} className="mb-8 grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md">
+              <div className="text-left">
+                <p className="text-gray-400 text-xs uppercase">Principal (Safe)</p>
+                <p className="text-2xl font-bold font-mono">{principalBalance.toFixed(2)}</p>
+              </div>
+              <div className="text-left">
+                <p className="text-yellow-400 text-xs uppercase">Bonus (Locked)</p>
+                <p className="text-2xl font-bold font-mono text-yellow-500">{bonusBalance.toFixed(2)}</p>
+              </div>
+              <div className="text-left">
+                <p className="text-blue-400 text-xs uppercase">Total Tickets</p>
+                <p className="text-2xl font-bold font-mono text-blue-400">{(principalBalance + bonusBalance).toFixed(2)}</p>
+              </div>
+              <div className="flex items-center justify-end">
+                <button onClick={handleWithdraw} className="text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 px-4 py-2 rounded-lg transition-colors border border-red-500/30">
+                  Withdraw Principal
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          <motion.div variants={item} className="mb-10">
             <span className="inline-block py-1 px-3 rounded-full bg-white/5 border border-white/10 text-blue-300 text-sm mb-6 backdrop-blur-sm">
               ✨ The Future of No-Loss Savings
             </span>
+            <h2 className="text-5xl md:text-6xl font-extrabold mb-6 tracking-tight leading-tight">
+              Win Daily Rewards. <br />
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
+                Keep Your Principal.
+              </span>
+            </h2>
           </motion.div>
-
-          <motion.h2
-            variants={item}
-            className="text-6xl md:text-7xl font-extrabold mb-6 tracking-tight leading-tight"
-          >
-            Win Daily Rewards. <br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
-              Keep Your Principal.
-            </span>
-          </motion.h2>
-
-          <motion.p
-            variants={item}
-            className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto"
-          >
-            The first no-loss prize savings game on Base. Deposit USDC, earn tickets for the daily draw, withdraw anytime.
-            Smart. Secure. Fun.
-          </motion.p>
 
           <motion.div
             variants={item}
             className="bg-gray-900/50 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/10 max-w-xl mx-auto hover:border-purple-500/30 transition-colors duration-500"
           >
-            {/* Stats Row */}
             <div className="grid grid-cols-2 gap-8 mb-8 text-left relative overflow-hidden">
               <div className="z-10">
                 <p className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Next Draw In</p>
@@ -91,21 +169,20 @@ export default function Home() {
                 <p className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Prize Pool</p>
                 <p className="text-4xl font-mono font-bold text-green-400 tracking-tighter">$1,250.00</p>
               </div>
-              {/* Subtle Glow behind stats */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-[40px] pointer-events-none" />
             </div>
 
             <div className="flex flex-col gap-4">
               <div className="relative">
                 <input
                   type="number"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
                   placeholder="0.00"
                   className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-2xl text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-mono"
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">USDC</span>
               </div>
 
-              {/* Terms Checkbox */}
               <div className="flex items-start gap-3 my-2 text-left bg-black/20 p-3 rounded-lg border border-white/5">
                 <input
                   type="checkbox"
@@ -121,13 +198,14 @@ export default function Home() {
               </div>
 
               <button
-                disabled={!agreed}
-                className={`w-full font-bold py-4 rounded-xl transition-all transform duration-200 border border-white/10
+                onClick={handleDeposit}
+                disabled={!agreed || isDepositing}
+                className={`w-full font-bold py-4 rounded-xl transition-all transform duration-200 border border-white/10 flex items-center justify-center gap-2
                   ${agreed
                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/25 cursor-pointer'
                     : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
               >
-                {agreed ? 'Deposit USDC & Enter' : 'Agree to Terms to Enter'}
+                {isDepositing ? <Loader2 className="animate-spin" /> : (agreed ? 'Deposit USDC & Enter' : 'Agree to Terms to Enter')}
               </button>
 
               {/* Bonus Banner */}
@@ -165,7 +243,7 @@ export default function Home() {
             {[
               { icon: "💎", title: "1. Deposit USDC", desc: "Your deposit is your ticket. 1 USDC = 1 Ticket. Withdraw your principal anytime." },
               { icon: "🎲", title: "2. Automatic Draw", desc: "Every 24 hours, our Chainlink VRF smart contract randomly selects a winner." },
-              { icon: "🏆", title: "3. Win Rewards", desc: "If you win, you get the pot! (Less protocol fee). If you lose, you keep your money." }
+              { icon: "🏆", title: "3. Win Actions", desc: "If you win, you get the pot! (Less protocol fee). If you lose, you keep your money." }
             ].map((step, i) => (
               <motion.div
                 key={i}
