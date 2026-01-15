@@ -1,8 +1,9 @@
-require("@nomicfoundation/hardhat-toolbox");
+import "@nomicfoundation/hardhat-ethers";
+import "dotenv/config";
 
 /** @type import('hardhat/config').HardhatUserConfig */
-module.exports = {
-    solidity: "0.8.19",
+export default {
+    solidity: "0.8.24",
     networks: {
         baseSepolia: {
             url: "https://sepolia.base.org",

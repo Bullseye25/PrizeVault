@@ -1,33 +1,41 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract PrizeVault is ReentrancyGuard, Ownable {
     IERC20 public usdc;
 
     struct Player {
-        uint256 balance;
+        uint256 principalBalance; // Withdrawable User Deposit
+        uint256 winningsBalance;  // Won from the lottery (Withdrawable or Convertible)
+        uint256 bonusBalance;     // Non-withdrawable, for tickets only
+        uint256 ticketBalance;    // Active tickets for the draw
         bool exists;
     }
 
     mapping(address => Player) public players;
     address[] public playerList;
     
-    uint256 public totalDeposits;
-    uint256 public treasuryBalance;
+    uint256 public totalPrincipal;
+    uint256 public totalTickets;
     
+    // Events
     event Deposit(address indexed user, uint256 amount);
-    event Withdraw(address indexed user, uint256 amount);
+    event BonusAwarded(address indexed user, uint256 amount);
+    event TicketsPurchased(address indexed user, uint256 cost, uint256 ticketAmount, string source);
+    event WithdrawPrincipal(address indexed user, uint256 amount);
+    event WithdrawWinnings(address indexed user, uint256 amount);
+    event WinningsConverted(address indexed user, uint256 amount);
     event WinnerPicked(address indexed winner, uint256 prizeAmount);
-    event TreasuryFee(uint256 amount);
-
-    constructor(address _usdcToken) {
+    
+    constructor(address _usdcToken) Ownable(msg.sender) {
         usdc = IERC20(_usdcToken);
     }
 
+    // 1. Deposit USDC
     function deposit(uint256 _amount) external nonReentrant {
         require(_amount > 0, "Amount must be > 0");
         require(usdc.transferFrom(msg.sender, address(this), _amount), "Transfer failed");
@@ -37,91 +45,98 @@ contract PrizeVault is ReentrancyGuard, Ownable {
             playerList.push(msg.sender);
         }
 
-        players[msg.sender].balance += _amount;
-        totalDeposits += _amount;
+        players[msg.sender].principalBalance += _amount;
+        totalPrincipal += _amount;
+        
+        // 5% Bonus if deposit >= 20 USDC
+        if (_amount >= 20 * 10**6) { 
+            uint256 bonus = (_amount * 5) / 100;
+            players[msg.sender].bonusBalance += bonus;
+            emit BonusAwarded(msg.sender, bonus);
+        }
 
         emit Deposit(msg.sender, _amount);
     }
 
-    function withdraw() external nonReentrant {
-        uint256 amount = players[msg.sender].balance;
-        require(amount > 0, "No balance");
-
-        players[msg.sender].balance = 0;
-        totalDeposits -= amount;
+    // 2. Buy Tickets
+    // Sources: 0 = Principal, 1 = Bonus, 2 = Winnings
+    function buyTickets(uint256 _usdcAmount, uint8 _source) external nonReentrant {
+        require(_usdcAmount > 0, "Amount must be > 0");
+        Player storage player = players[msg.sender];
         
-        // Transfer USDC back to user
-        require(usdc.transfer(msg.sender, amount), "Transfer failed");
+        string memory sourceStr;
 
-        emit Withdraw(msg.sender, amount);
-    }
-
-    // SIMULATED DRAW (For Hackathon/Demo Only)
-    // In Production: Use Chainlink VRF
-    function drawWinner() external onlyOwner {
-        require(totalDeposits > 0, "No deposits");
-        
-        // 1. Simulate Yield/Prize (Since we aren't actually lending it out in this MVP)
-        // We will just "Mint" a prize from the Owner's wallet or assume the pot grew.
-        // For the *Demo*, we will use the 'totalDeposits' as the weight, but we need a 'Reward' pot.
-        // Let's assume the Reward is just a donation for the demo, or we take a fee from deposits (User said "take 20% from total deposit").
-        // USER REQ: "whatever will be the total deposit, we will take out 20%... remaining 80% distributed"
-        // Wait, "No-Loss" usually means "Interest" is the prize.
-        // But the user SPECIFICALLY said: "Upon depositing 100tk... whatever will be the total deposit, we will take out 20%..."
-        // This effectively makes it a "Lottery" where you CAN lose (the 20% rake). 
-        // BUT my proposal said "No-Loss". 
-        // I must stick to the USER'S logic for the mechanics (20% fee) but "Market" it carefully?
-        // Actually, if I take 20% of the PRINCIPAL, it's NOT "No-Loss".
-        // Keep it simple: I will follow the User's "Lottery" mechanic (20% Rake), but maybe I should warn them.
-        // However, "Prize Savings" usually implies No-Loss. 
-        // To bridge the gap: I will implement the 20% rake on the *Prize Pool* (if it was interest), OR on the Deposit?
-        // User said: "whatever will be the total deposit, we will take out 20%".
-        // This implies a LOSS of principal for losers. 
-        // Since I sold the user on "No-Loss" to get the grant, I should implement "No-Loss" logic (Yield based).
-        // BUT, for the MVP Demo, generating Yield takes time.
-        // Compromise: I will make a "Mock Yield" function. The Owner deposits "Prize Money" (the Yield) into the contract manually.
-        // Then we take 20% of that *Prize Money* for the Treasury, and 80% to the winner.
-        // This keeps the user's Principal safe ("No-Loss").
-        
-        uint256 mockYield = usdc.balanceOf(address(this)) - totalDeposits - treasuryBalance;
-        require(mockYield > 0, "No yield generated");
-
-        uint256 fee = (mockYield * 20) / 100;
-        uint256 prize = mockYield - fee;
-
-        treasuryBalance += fee;
-        emit TreasuryFee(fee);
-
-        // Pick Winner (Randomness)
-        uint256 randomHash = uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty, msg.sender)));
-        uint256 winningTicket = randomHash % totalDeposits;
-
-        uint256 currentCount = 0;
-        address winner;
-        
-        for (uint256 i = 0; i < playerList.length; i++) {
-            address player = playerList[i];
-            uint256 bal = players[player].balance;
-            if (bal == 0) continue;
-            
-            if (winningTicket >= currentCount && winningTicket < currentCount + bal) {
-                winner = player;
-                break;
-            }
-            currentCount += bal;
+        if (_source == 0) {
+            require(player.principalBalance >= _usdcAmount, "Insufficient principal");
+            player.principalBalance -= _usdcAmount;
+            totalPrincipal -= _usdcAmount; // Consumed into the pot
+            sourceStr = "PRINCIPAL";
+        } else if (_source == 1) {
+            require(player.bonusBalance >= _usdcAmount, "Insufficient bonus");
+            player.bonusBalance -= _usdcAmount;
+            sourceStr = "BONUS";
+        } else if (_source == 2) {
+             require(player.winningsBalance >= _usdcAmount, "Insufficient winnings");
+             player.winningsBalance -= _usdcAmount;
+             // Winnings used for tickets are also consumed
+             sourceStr = "WINNINGS";
+        } else {
+            revert("Invalid source");
         }
 
-        if (winner != address(0)) {
-            // Send Prize
-            require(usdc.transfer(winner, prize), "Prize transfer failed");
-            emit WinnerPicked(winner, prize);
-        }
+        uint256 newTickets = _usdcAmount * 10;
+        player.ticketBalance += newTickets;
+        totalTickets += newTickets;
+
+        emit TicketsPurchased(msg.sender, _usdcAmount, newTickets, sourceStr);
     }
 
-    function withdrawTreasury() external onlyOwner {
-        require(treasuryBalance > 0, "No treasury");
-        uint256 amount = treasuryBalance;
-        treasuryBalance = 0;
-        require(usdc.transfer(msg.sender, amount), "Transfer failed");
+    // 3. Withdraw Principal
+    function withdrawPrincipal(uint256 _amount) external nonReentrant {
+        require(players[msg.sender].principalBalance >= _amount, "Insufficient principal");
+        
+        players[msg.sender].principalBalance -= _amount;
+        totalPrincipal -= _amount;
+        
+        require(usdc.transfer(msg.sender, _amount), "Transfer failed");
+
+        emit WithdrawPrincipal(msg.sender, _amount);
+    }
+
+    // 4. Withdraw Winnings
+    function withdrawWinnings(uint256 _amount) external nonReentrant {
+        require(players[msg.sender].winningsBalance >= _amount, "Insufficient winnings");
+
+        players[msg.sender].winningsBalance -= _amount;
+        // Winnings are not part of 'totalPrincipal', they are surplus in the contract
+        
+        require(usdc.transfer(msg.sender, _amount), "Transfer failed");
+
+        emit WithdrawWinnings(msg.sender, _amount);
+    }
+
+    // 5. Convert Winnings to Deposit (Compound)
+    function convertWinningsToDeposit(uint256 _amount) external nonReentrant {
+        require(players[msg.sender].winningsBalance >= _amount, "Insufficient winnings");
+
+        players[msg.sender].winningsBalance -= _amount;
+        players[msg.sender].principalBalance += _amount;
+        totalPrincipal += _amount; // Now it is part of the liability
+
+        emit WinningsConverted(msg.sender, _amount);
+    }
+
+    // SIMULATED DRAW (Admin manually picks winner and amount for Demo)
+    function drawWinner(address _winner, uint256 _prizeAmount) external onlyOwner {
+        require(totalTickets > 0, "No tickets");
+        // In real VRF, we'd pick random address. Here we let admin simulate.
+        
+        players[_winner].winningsBalance += _prizeAmount;
+        
+        // Reset tickets? For demo we might keep them or reset. 
+        // Let's reset purely for simulation logic if desired, or keep cumulative.
+        // For this hackathon demo, we simply award the prize.
+        
+        emit WinnerPicked(_winner, _prizeAmount);
     }
 }

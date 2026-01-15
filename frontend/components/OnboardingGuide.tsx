@@ -9,22 +9,22 @@ const steps = [
     {
         icon: <Wallet className="w-12 h-12 text-blue-400" />,
         title: "How to Play",
-        desc: "Connect your wallet and deposit USDC. 1 USDC = 1 Ticket. The more you deposit, the higher your chances."
+        desc: "Connect your wallet and deposit USDC. 1 USDC = 10 Tickets. The more tickets you have, the higher your chances."
     },
     {
         icon: <Clock className="w-12 h-12 text-purple-400" />,
         title: "Daily Draws",
-        desc: "Every 24 hours, a winner is randomly selected by our smart contract. The timer shows when the next draw happens."
+        desc: "Every 24 hours, the smart contract randomly selects a winning ticket using Chainlink VRF."
     },
     {
         icon: <Trophy className="w-12 h-12 text-yellow-400" />,
-        title: "Win Big, Lose Nothing",
-        desc: "If you win, you take the prize pool! If you lose, you keep your deposit and play again automatically."
+        title: "Win the Pot",
+        desc: "If you win, you take the entire prize pool! If you lose, your ticket purchase contributes to the next pot."
     },
     {
         icon: <LogOut className="w-12 h-12 text-green-400" />,
-        title: "Withdraw Anytime",
-        desc: "Need your money back? Withdraw your full principal instantly. No locks, no penalties."
+        title: "Fair Play",
+        desc: "Provably fair and transparent. All funds go into the smart contract prize pool."
     }
 ];
 

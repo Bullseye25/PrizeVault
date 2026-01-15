@@ -45,8 +45,8 @@ export function TermsModal({ isOpen, onClose }: TermsModalProps) {
                             </section>
 
                             <section>
-                                <h3 className="text-white font-bold text-lg mb-2">2. No-Loss Mechanic & Risk</h3>
-                                <p>PrizeVault is designed as a "no-loss" prize savings game where your principal is preserved. However, smart contract risks exist. While we audit our code, we cannot guarantee total immunity from hacks or bugs.</p>
+                                <h3 className="text-white font-bold text-lg mb-2">2. Lottery Mechanics (Risk Warning)</h3>
+                                <p>PrizeVault is a <strong>Lottery Protocol</strong>. When you deposit USDC, you are purchasing tickets for the daily draw. <strong>This is NOT a savings account.</strong> Funds used to purchase tickets are pooled and awarded to the winner. If you do not win, your deposit is not returned.</p>
                             </section>
 
                             <section>
